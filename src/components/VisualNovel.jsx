@@ -1,12 +1,14 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { scenes } from '../story.js';
 
 const VisualNovel = ({ backToMenu, startScene = 0, theme }) => {
   const [currentScene, setCurrentScene] = useState(startScene);
   const [charPosition, setCharPosition] = useState('center');
+  const [isAutoplaying, setIsAutoplaying] = useState(false);
 
   const { text, character, position, background } = scenes[currentScene];
+  const autoplayIntervalRef = useRef(null);
 
   useEffect(() => {
     setCharPosition(position);
@@ -24,17 +26,41 @@ const VisualNovel = ({ backToMenu, startScene = 0, theme }) => {
     }
   };
 
+  const toggleAutoplay = () => {
+    setIsAutoplaying(prev => !prev);
+  };
+
+  useEffect(() => {
+    if (isAutoplaying) {
+      autoplayIntervalRef.current = setInterval(() => {
+        if (currentScene < scenes.length - 1) {
+          handleNext();
+        } else {
+          // Stop autoplay at the end of the novel
+          setIsAutoplaying(false);
+        }
+      }, 3000); // 3-second interval for autoplay
+    } else {
+      clearInterval(autoplayIntervalRef.current);
+    }
+
+    // Cleanup on component unmount
+    return () => clearInterval(autoplayIntervalRef.current);
+  }, [isAutoplaying, currentScene]); // Rerun when isAutoplaying or currentScene changes
+
   const styles = {
     container: {
       fontFamily: `'Segoe UI', 'Roboto', sans-serif`,
       height: 'calc(100vh - 60px)',
-      background: `url(${background}) no-repeat center center / cover`,
+      backgroundImage: `url(${background})`,
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center center',
+      backgroundSize: 'cover',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'flex-end',
       position: 'relative',
       transition: 'background-image 0.5s ease-in-out',
-      backgroundSize: 'cover',
     },
     character: {
       position: 'absolute',
@@ -86,6 +112,9 @@ const VisualNovel = ({ backToMenu, startScene = 0, theme }) => {
     <div style={styles.container}>
       {character && <img src={character} alt="Character" style={styles.character} />}
       <div style={styles.buttonContainer}>
+          <button onClick={toggleAutoplay} style={{...styles.button, background: isAutoplaying ? '#dc3545' : '#28a745', color: 'white'}}>
+            {isAutoplaying ? 'Stop Autoplay' : 'Start Autoplay'}
+          </button>
           <button onClick={handleBack} style={{...styles.button, background: theme.inputBg, color: theme.text}}>Back</button>
           <button onClick={handleNext} style={{...styles.button, background: theme.primary, color: theme.cardBg}}>Next</button>
       </div>

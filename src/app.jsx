@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RPGMenu from './components/RPGMenu';
 import VisualNovel from './components/VisualNovel';
 import ChapterSelection from './components/ChapterSelection';
@@ -20,6 +20,31 @@ export default function App() {
   const [highScore, setHighScore] = useState(0);
   
   const [theme, setTheme] = useState(lightTheme);
+  
+  // State for API settings
+  const [apiKey, setApiKey] = useState('');
+  const [apiProvider, setApiProvider] = useState('google');
+  const [model, setModel] = useState('gemini-1.5-pro');
+
+  // Load settings from local storage on initial render
+  useEffect(() => {
+    const savedApiKey = localStorage.getItem('apiKey');
+    const savedApiProvider = localStorage.getItem('apiProvider');
+    const savedModel = localStorage.getItem('model');
+
+    if (savedApiKey) setApiKey(savedApiKey);
+    if (savedApiProvider) setApiProvider(savedApiProvider);
+    if (savedModel) setModel(savedModel);
+  }, []);
+
+  const handleApiSettingsChange = (settings) => {
+    setApiKey(settings.key);
+    setApiProvider(settings.provider);
+    setModel(settings.model);
+    localStorage.setItem('apiKey', settings.key);
+    localStorage.setItem('apiProvider', settings.provider);
+    localStorage.setItem('model', settings.model);
+  };
 
   const toggleTheme = () => {
     setTheme(theme === lightTheme ? darkTheme : lightTheme);
@@ -73,7 +98,14 @@ export default function App() {
       case 'leaderboard':
         return <Leaderboard backToMenu={handleBackToMenu} userHighScore={highScore} theme={theme} />;
       case 'ai-assistants':
-        return <AIAssistants backToMenu={handleBackToMenu} theme={theme} />;
+        return <AIAssistants 
+                  backToMenu={handleBackToMenu} 
+                  theme={theme} 
+                  apiKey={apiKey}
+                  apiProvider={apiProvider}
+                  model={model}
+                  onApiSettingsChange={handleApiSettingsChange}
+                />;
       case 'savings':
         return <Savings theme={theme} />;
       case 'knowledge': // Add knowledge view

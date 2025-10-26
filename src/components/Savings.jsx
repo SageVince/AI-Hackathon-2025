@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import samuelJacksonImage from '../assets/samueljackson.png';
 
 // --- Daily Challenges Data ---
 const dailyChallenges = [
@@ -24,10 +25,40 @@ const Savings = ({ theme }) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [todaysChallenge, setTodaysChallenge] = useState(null);
 
+  // Load progress from localStorage on component mount
+  useEffect(() => {
+    try {
+        const savedProgress = localStorage.getItem('financialJourneyProgress');
+        if (savedProgress) {
+            const { goal, currentSavings, day, gameStarted } = JSON.parse(savedProgress);
+            setGoal(goal);
+            setCurrentSavings(currentSavings);
+            setDay(day);
+            setGameStarted(gameStarted);
+        }
+    } catch (error) {
+        console.error("Could not load financial journey progress from local storage", error);
+    }
+  }, []); // Empty dependency array to run only on mount
+
+  // Save progress to localStorage whenever it changes
+  useEffect(() => {
+    try {
+        const progress = {
+            goal,
+            currentSavings,
+            day,
+            gameStarted
+        };
+        localStorage.setItem('financialJourneyProgress', JSON.stringify(progress));
+    } catch (error) {
+        console.error("Could not save financial journey progress to local storage", error);
+    }
+  }, [goal, currentSavings, day, gameStarted]);
+
   useEffect(() => {
     if (gameStarted) {
-      // Pick a random challenge that hasn't been seen in a while if possible
-      // Simple random for now
+      // Pick a random challenge
       setTodaysChallenge(dailyChallenges[Math.floor(Math.random() * dailyChallenges.length)]);
     }
   }, [day, gameStarted]);
@@ -165,6 +196,27 @@ const Savings = ({ theme }) => {
         justifyContent: 'flex-end',
         gap: '15px',
     },
+    samJacksonContainer: {
+        marginTop: '50px',
+        background: theme.cardBg,
+        padding: '30px',
+        borderRadius: '12px',
+        border: `1px solid ${theme.borderColor}`,
+        maxWidth: '800px',
+        margin: '50px auto',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '30px',
+    },
+    samJacksonImage: {
+        width: '150px',
+        height: '150px',
+        borderRadius: '50%',
+        objectFit: 'cover',
+    },
+    samJacksonText: {
+        textAlign: 'left',
+    },
   };
 
   const renderGame = () => (
@@ -206,11 +258,27 @@ const Savings = ({ theme }) => {
       </div>
   );
 
+  const renderSamJacksonPromo = () => (
+    <div style={styles.samJacksonContainer}>
+        <img src={samuelJacksonImage} alt="Samuel L. Jackson" style={styles.samJacksonImage} />
+        <div style={styles.samJacksonText}>
+            <h2 style={{...styles.challengeTitle, marginTop: 0}}>You want to save money? That's a challenge?</h2>
+            <p style={styles.challengeDescription}>"Listen up! You think saving is hard? Try a high-yield savings account from Credit One Bank. It practically saves for you. Now stop playing games and get your money right."</p>
+            <button style={{...styles.button, background: '#ffc107', color: 'black'}}>Open a Damn Account</button>
+        </div>
+    </div>
+  );
+
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Your Financial Journey</h1>
       <p style={styles.subtitle}>{gameStarted ? "Complete daily challenges to reach your goal!" : "Set a goal to start your 365-day savings challenge."}</p>
-      {gameStarted ? renderGame() : renderGoalSetter()}
+      {gameStarted ? renderGame() : (
+        <>
+            {renderGoalSetter()}
+            {renderSamJacksonPromo()}
+        </>
+      )}
     </div>
   );
 };

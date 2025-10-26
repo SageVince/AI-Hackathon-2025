@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
-const Chat = ({ assistant, backToAssistants, theme, apiKey, apiProvider, systemPrompt }) => {
+const Chat = ({ assistant, backToAssistants, theme, apiKey, apiProvider, model, systemPrompt }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,33 +13,88 @@ const Chat = ({ assistant, backToAssistants, theme, apiKey, apiProvider, systemP
 
   useEffect(scrollToBottom, [messages, loading]);
 
-  // This function simulates a call to a generative AI API
-  const callSimulatedApi = async (userMessage, prompt, key, provider) => {
+  const callGenerativeApi = async (userMessage, prompt, key, provider, model) => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-    setLoading(false);
 
-    if (!key) {
+    if (provider !== 'ollama' && !key) {
+        setLoading(false);
         return "It looks like you haven't entered an API key. Please go to the API Key Settings and enter a valid key for your selected provider.";
     }
 
-    const lowerMessage = userMessage.toLowerCase();
-    let response = `(Simulated response from ${provider} based on the persona of ${assistant.name}). `;
+    let endpoint = '';
+    const headers = { 'Content-Type': 'application/json' };
+    let body = {};
 
-    if (prompt.toLowerCase().includes('stonk pork')) {
-        if (lowerMessage.includes('crypto')) response += "Crypto is a wild ride, buckle up! High risk, high reward. We gotta be smart about it.";
-        else if (lowerMessage.includes('stocks')) response += "Ah, stocks, my bread and butter! It's all about finding those hidden gems before they pop.";
-        else response += "Tell me what financial frontier you want to explore. Let's get this bread!";
-    }
-     else if (prompt.toLowerCase().includes('samuel l. jackson')) {
-        if (lowerMessage.includes('capital one')) response += "It's a no-brainer! Capital One 360 Savings is the real deal. Simple, effective, no games. That's how you handle your money.";
-        else if (lowerMessage.includes('lazy') || lowerMessage.includes('easy')) response += "You want easy? I'll give you easy. Set up automatic transfers to a high-yield savings account. Done. Now stop making excuses.";
-        else response += "Alright, enough chit-chat. What's the financial situation? Lay it on me, and I'll give you the straight-up truth.";
-    } else {
-        response += `I am processing your query: \"${userMessage}\". My core directive is to respond according to my persona. A real AI would now provide a detailed, nuanced answer.`;
+    switch (provider) {
+        case 'google':
+            endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+            body = {
+                contents: [{
+                    parts: [{ text: `${prompt}\n\nUser: ${userMessage}` }]
+                }]
+            };
+            break;
+        case 'openai':
+            endpoint = `https://api.openai.com/v1/chat/completions`;
+            headers['Authorization'] = `Bearer ${key}`;
+            body = {
+                model: model,
+                messages: [
+                    { role: 'system', content: prompt },
+                    { role: 'user', content: userMessage }
+                ]
+            };
+            break;
+        case 'ollama':
+            endpoint = `http://localhost:11434/api/generate`;
+            body = {
+                model: model,
+                prompt: `${prompt}\n\nUser: ${userMessage}`,
+                stream: false
+            };
+            break;
+        default:
+            setLoading(false);
+            return "Invalid API provider selected.";
     }
 
-    return response;
+    try {
+        const response = await fetch(endpoint, { 
+            method: 'POST', 
+            headers, 
+            body: JSON.stringify(body) 
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                return "Authentication failed. Please check your API key in the settings. It seems to be invalid or missing permissions.";
+            }
+            throw new Error(`API call failed with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        let aiResponse = '';
+
+        switch (provider) {
+            case 'google':
+                aiResponse = data.candidates[0].content.parts[0].text;
+                break;
+            case 'openai':
+                aiResponse = data.choices[0].message.content;
+                break;
+            case 'ollama':
+                aiResponse = data.response;
+                break;
+        }
+
+        return aiResponse;
+
+    } catch (error) {
+        console.error("API call error:", error);
+        return `Sorry, I ran into an error trying to connect to the AI service. Please check the console and make sure the service is running at ${endpoint}`;
+    } finally {
+        setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -55,16 +110,13 @@ const Chat = ({ assistant, backToAssistants, theme, apiKey, apiProvider, systemP
       const currentInput = input;
       setInput('');
 
-      const aiResponse = await callSimulatedApi(currentInput, systemPrompt, apiKey, apiProvider);
+      const aiResponse = await callGenerativeApi(currentInput, systemPrompt, apiKey, apiProvider, model);
 
       setMessages(prevMessages => [...prevMessages, { text: aiResponse, sender: 'assistant' }]);
     }
   };
-
-  const styles = { /* styles remain the same */ };
-
+  
   return (
-    // JSX for chat remains the same, but now it's powered by the simulated API
      <div style={{display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)', background: theme.background, color: theme.text}}>
       <div style={{display: 'flex', alignItems: 'center', padding: '10px 20px', background: theme.cardBg, borderBottom: `1px solid ${theme.borderColor}`}}>
         <button onClick={backToAssistants} style={{background: 'none', border: 'none', color: theme.text, fontSize: '1.5rem', cursor: 'pointer', marginRight: '15px'}}>&larr;</button>

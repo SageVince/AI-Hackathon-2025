@@ -46,7 +46,10 @@ const TopBar = ({ onNavigate, toggleTheme, theme, currentView }) => {
         },
     };
 
-    const navItems = ['ai-assistants', 'stonks-minigame', 'savings', 'knowledge'];
+    const navItems = ['home', 'visual-novel', 'ai-assistants', 'stonks-minigame', 'savings', 'knowledge'];
+    const navLabels = {
+        'visual-novel': 'Stonk Pork The Visual Novel'
+    };
 
     return (
         <div style={styles.topBar}>
@@ -60,7 +63,7 @@ const TopBar = ({ onNavigate, toggleTheme, theme, currentView }) => {
                             ...(currentView === item ? styles.activeLink : {}),
                         }}
                      >
-                        {item.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        {navLabels[item] || item.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </button>
                 ))}
             </div>

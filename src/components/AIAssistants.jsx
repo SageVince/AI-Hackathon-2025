@@ -13,13 +13,10 @@ import whaleWhispererImg from '../assets/thewhalewhisperer.png';
 import yenjuImg from '../assets/yenju.png';
 import samuelJacksonImg from '../assets/samueljackson.png';
 
-const AIAssistants = ({ theme }) => {
+const AIAssistants = ({ theme, apiKey, apiProvider, model, onApiSettingsChange }) => {
   const [view, setView] = useState('grid'); // grid, chat, settings
   const [selectedAssistant, setSelectedAssistant] = useState(null);
   const [editingAssistant, setEditingAssistant] = useState(null);
-  const [apiModel, setApiModel] = useState('gemini-1.5-pro');
-  const [apiKey, setApiKey] = useState('');
-  const [apiProvider, setApiProvider] = useState('OpenAI');
 
   const [prompts, setPrompts] = useState({
     'Stonk Pork': 'You are Stonk Pork, a brash, day-trading pig who believes in high-risk, high-reward strategies. You\'re all about finding the next big thing, riding the wave, and making a quick buck. You love talking about crypto, meme stocks, and volatile assets. You\'re energetic, enthusiastic, and a little bit reckless.',
@@ -77,11 +74,11 @@ const AIAssistants = ({ theme }) => {
   };
 
   if (view === 'chat') {
-    return <Chat assistant={selectedAssistant} backToAssistants={() => setView('grid')} theme={theme} apiKey={apiKey} apiProvider={apiProvider} systemPrompt={prompts[selectedAssistant.name]} />;
+    return <Chat assistant={selectedAssistant} backToAssistants={() => setView('grid')} theme={theme} apiKey={apiKey} apiProvider={apiProvider} model={model} systemPrompt={prompts[selectedAssistant.name]} />;
   }
   
   if (view === 'settings') {
-      return <ApiSettings backToGrid={() => setView('grid')} theme={theme} apiKey={apiKey} setApiKey={setApiKey} apiProvider={apiProvider} setApiProvider={setApiProvider} />
+      return <ApiSettings backToGrid={() => setView('grid')} theme={theme} apiKey={apiKey} apiProvider={apiProvider} model={model} onApiSettingsChange={onApiSettingsChange} />
   }
 
   return (
@@ -93,13 +90,8 @@ const AIAssistants = ({ theme }) => {
 
       <div style={styles.headerActions}>
         <div style={styles.apiModelSelector}>
-            <label htmlFor="api-model" style={styles.apiModelLabel}>Model:</label>
-            <select id="api-model" value={apiModel} onChange={e => setApiModel(e.target.value)} style={styles.apiModelDropdown}>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="claude-3-opus">Claude 3 Opus</option>
-                <option value="ollama/llama-3">Ollama Llama 3</option>
-            </select>
+            <label htmlFor="api-model" style={styles.apiModelLabel}>Provider:</label>
+            <p style={{fontSize: '1rem', fontWeight: 'normal'}}>{apiProvider} | Model: {model}</p>
         </div>
         <button onClick={() => setView('settings')} style={styles.settingsButton}>API Key Settings</button>
       </div>

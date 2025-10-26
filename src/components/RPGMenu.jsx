@@ -72,7 +72,9 @@ const RPGMenu = ({ onNavigate, theme }) => {
       { id: 'portfolio', title: 'Portfolio Simulator', description: 'Test your investment strategies in a live, simulated market.' },
       { id: 'stonks-minigame', title: 'Stonks! The Minigame', description: 'Play a fast-paced arcade game to earn extra capital for your portfolio.' },
       { id: 'leaderboard', title: 'Leaderboard', description: 'See how your portfolio performance ranks against other players.' },
-      { id: 'ai-assistants', title: 'AI Advisors', description: 'Chat with futuristic AI assistants to get investment advice and insights.' }
+      { id: 'ai-assistants', title: 'AI Advisors', description: 'Chat with futuristic AI assistants to get investment advice and insights.' },
+      { id: 'savings', title: 'Savings Challenge', description: 'Learn to save money through a fun, gamified 365-day challenge.' },
+      { id: 'knowledge', title: 'Knowledge Base', description: 'Expand your financial literacy with articles and lessons on key topics.' }
   ];
 
   return (
