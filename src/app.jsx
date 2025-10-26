@@ -7,8 +7,10 @@ import StonksMinigame from './components/StonksMinigame';
 import Portfolio from './components/Portfolio'; 
 import Leaderboard from './components/Leaderboard';
 import AIAssistants from './components/AIAssistants';
-import TopBar from './components/TopBar'; // Import TopBar
-import { lightTheme, darkTheme } from './themes'; // Import themes
+import Savings from './components/Savings';
+import Knowledge from './components/Knowledge'; // Import Knowledge
+import TopBar from './components/TopBar';
+import { lightTheme, darkTheme } from './themes';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('rpg-menu');
@@ -17,7 +19,6 @@ export default function App() {
   const [gameBalance, setGameBalance] = useState(0);
   const [highScore, setHighScore] = useState(0);
   
-  // --- Theme State ---
   const [theme, setTheme] = useState(lightTheme);
 
   const toggleTheme = () => {
@@ -37,7 +38,7 @@ export default function App() {
 
   const handleMiniGameEnd = (score) => {
     setGameBalance(prevBalance => prevBalance + score);
-    handleNavigation('portfolio'); // Go to portfolio instead of menu
+    handleNavigation('portfolio');
   }
 
   const handlePortfolioEnd = (finalNetWorth) => {
@@ -73,13 +74,16 @@ export default function App() {
         return <Leaderboard backToMenu={handleBackToMenu} userHighScore={highScore} theme={theme} />;
       case 'ai-assistants':
         return <AIAssistants backToMenu={handleBackToMenu} theme={theme} />;
+      case 'savings':
+        return <Savings theme={theme} />;
+      case 'knowledge': // Add knowledge view
+        return <Knowledge theme={theme} />;
       case 'rpg-menu':
       default:
         return <RPGMenu onNavigate={handleNavigation} theme={theme} />;
     }
   }
 
-  // Add a wrapper div to manage spacing for the fixed TopBar
   const mainContentStyle = {
       paddingTop: currentView !== 'rpg-menu' ? '60px' : '0',
       background: theme.background,
