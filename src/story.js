@@ -8,7 +8,7 @@ import ecuadorKnucklesImg from './assets/ecuadorianknuckles.jpg';
 import cyberSageImg from './assets/cybersage.png';
 import whaleWhispererImg from './assets/thewhalewhisperer.png';
 import samuelJacksonImg from './assets/samueljackson.png';
-import yenjuImg from './assets/yenju.png';
+import yenjiImg from './assets/yenji.png';
 import bondydomain from './assets/bondydomain.jpg';
 import cafe from './assets/cafedomain.jpg';
 import ecuador from './assets/ecuador.png';
@@ -30,7 +30,7 @@ export const scenes = [
       speaker: 'Stonk Pork',
       character: stonkPorkImg,
       position: 'right',
-      text: 'The Flip? Sounds like a pancake move, bro.',
+      text: 'The Flip? Sounds like a pancake move.',
     },
     {
       background: bondydomain,
@@ -109,7 +109,7 @@ export const scenes = [
       speaker: 'John Pork',
       character: johnPorkImg,
       position: 'right',
-      text: 'Bro—it’s me, Chungus! Your cousin John Pork just blew up his portfolio. Went all-in on options. Got liquidated, fam.',
+      text: 'Bro—it’s me! Your cousin John Pork I just blew up my portfolio. Went all-in on options. Got liquidated, fam. Im headed to ecuador meet me there!',
     },
     {
       background: cafe,
@@ -173,8 +173,8 @@ export const scenes = [
     },
     {
         background: cafe,
-        speaker: 'Yenju',
-        character: yenjuImg,
+        speaker: 'Yenji',
+        character: yenjiImg,
         position: 'right',
         text: 'You warned us, man. You said, ‘pigs get fed, hogs get slaughtered.’ Guess I got roasted.',
     },

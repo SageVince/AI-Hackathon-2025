@@ -74,15 +74,22 @@ const RPGMenu = ({ onNavigate, theme }) => {
       { id: 'leaderboard', title: 'Leaderboard', description: 'See how your portfolio performance ranks against other players.' },
       { id: 'ai-assistants', title: 'AI Advisors', description: 'Chat with futuristic AI assistants to get investment advice and insights.' },
       { id: 'savings', title: 'Savings Challenge', description: 'Learn to save money through a fun, gamified 365-day challenge.' },
-      { id: 'knowledge', title: 'Knowledge Base', description: 'Expand your financial literacy with articles and lessons on key topics.' }
+      { id: 'knowledge', title: 'Knowledge Base', description: 'Expand your financial literacy with articles and lessons on key topics.' },
+      { id: 'capital-one', title: 'Capital One Savings', description: 'Open a high-yield savings account with Capital One.', url: 'https://apply.capitalone.com/index.html#/getting-started?productId=3800' },
   ];
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Stonk Simulator</h1>
+      <h1 style={styles.title}>Stonk Pork the Capital One Financial Guide</h1>
       <div style={styles.menu}>
         {menuItems.map(item => (
-            <div key={item.id} style={styles.menuItem} onClick={() => onNavigate(item.id)} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+            <div 
+                key={item.id} 
+                style={styles.menuItem} 
+                onClick={() => item.url ? window.open(item.url, '_blank') : onNavigate(item.id)} 
+                onMouseEnter={handleMouseEnter} 
+                onMouseLeave={handleMouseLeave}
+            >
                 <h2 style={styles.itemTitle}>{item.title}</h2>
                 <p style={styles.itemDescription}>{item.description}</p>
             </div>

@@ -18,12 +18,30 @@ const dailyChallenges = [
     { id: 12, type: 'knowledge', title: "Learn: Roth IRA vs 401(k)", description: "Understand the basics. Roth IRAs grow tax-free; 401(k)s offer pre-tax benefits.", reward: 1 }
 ];
 
+const financialQuotes = [
+    { quote: "A budget is telling your money where to go instead of wondering where it went.", author: "Dave Ramsey" },
+    { quote: "The stock market is a device for transferring money from the impatient to the patient.", author: "Warren Buffett" },
+    { quote: "It's not how much money you make, but how much money you keep, how hard it works for you, and how many generations you keep it for.", author: "Robert Kiyosaki" },
+    { quote: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
+    { quote: "Do not save what is left after spending, but spend what is left after saving.", author: "Warren Buffett" },
+    { quote: "The goal isn't more money. The goal is living life on your own terms.", author: "Chris Brogan" },
+];
+
 const Savings = ({ theme }) => {
   const [goal, setGoal] = useState(5000);
   const [currentSavings, setCurrentSavings] = useState(0);
   const [day, setDay] = useState(1);
   const [gameStarted, setGameStarted] = useState(false);
   const [todaysChallenge, setTodaysChallenge] = useState(null);
+  const [currentQuote, setCurrentQuote] = useState('');
+
+  useEffect(() => {
+    const quoteInterval = setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * financialQuotes.length);
+        setCurrentQuote(financialQuotes[randomIndex]);
+    }, 20000);
+    return () => clearInterval(quoteInterval);
+  }, []);
 
   // Load progress from localStorage on component mount
   useEffect(() => {
@@ -91,7 +109,13 @@ const Savings = ({ theme }) => {
     subtitle: {
         fontSize: '1.2rem',
         color: theme.textSecondary,
-        marginBottom: '50px',
+        marginBottom: '25px',
+    },
+    quoteContainer: {
+        margin: '0 auto 30px auto',
+        maxWidth: '800px',
+        fontStyle: 'italic',
+        color: theme.textSecondary,
     },
     goalSetter: {
         background: theme.cardBg,
@@ -273,6 +297,10 @@ const Savings = ({ theme }) => {
     <div style={styles.container}>
       <h1 style={styles.title}>Your Financial Journey</h1>
       <p style={styles.subtitle}>{gameStarted ? "Complete daily challenges to reach your goal!" : "Set a goal to start your 365-day savings challenge."}</p>
+      <div style={styles.quoteContainer}>
+          <p>"{currentQuote.quote}"</p>
+          <p style={{textAlign: 'right', fontWeight: 'bold'}}>- {currentQuote.author}</p>
+      </div>
       {gameStarted ? renderGame() : (
         <>
             {renderGoalSetter()}

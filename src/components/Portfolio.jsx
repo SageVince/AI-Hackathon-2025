@@ -1,240 +1,236 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import CandlestickChart from './CandlestickChart'; 
-
-const lessons = {
-    welcome: { title: 'Welcome to the Simulator!', content: 'This is a safe space to learn about investing. You have $10,000 in cash. Try buying some shares from the market below.' },
-    whyStocks: { title: 'Why Do Companies Issue Stock?', content: 'You just bought your first shares! When you buy a stock, you\'re buying a small piece of ownership in a company. Companies sell stock to raise money for growth, research, and other projects.' },
-    diversify: { title: 'Lesson: Diversification', content: '\'Don\'t put all your eggs in one basket.\' Holding stocks in different companies and industries can help reduce risk. If one stock performs poorly, your other investments can help balance it out.' },
-    volatile: { title: 'Lesson: Market Volatility', content: 'Stock prices go up and down—that\'s volatility. Short-term changes are normal. Great investors think long-term and don\'t panic when prices dip. Focus on the company\'s value.' }
-};
-const initialStocks = [
-    { ticker: 'PGP', name: 'Pharma-Gen', price: 479.20, history: [347.93], change: 0 },
-    { ticker: 'RHG', name: 'The Retail Holdings Group', price: 314.74, history: [319.08], change: 0 },
-    { ticker: 'TCE', name: 'The Consumer Exchange', price: 259.69, history: [294.86], change: 0 },
-    { ticker: 'BPE', name: 'Bio-Pharma', price: 341.46, history: [291.70], change: 0 },
-    { ticker: 'HBG', name: 'Healthbridge', price: 320.52, history: [291.29], change: 0 },
-];
+import React, { useState, useEffect, useRef } from 'react';
+import Stock from './Stock';
 
 const Portfolio = ({ backToMenu, gameBalance, depositEarnings, onGameEnd, theme }) => {
-  const [stocks, setStocks] = useState(initialStocks);
-  const [portfolio, setPortfolio] = useState({ cash: 10000, holdings: [] });
-  const [transactions, setTransactions] = useState([]);
-  const [tradeQuantities, setTradeQuantities] = useState({});
-  const [activeLessonKey, setActiveLessonKey] = useState('welcome');
+    const [cash, setCash] = useState(10000);
+    const [netWorth, setNetWorth] = useState(10000);
+    const [stocks, setStocks] = useState([]);
+    const [tradeLog, setTradeLog] = useState([]);
+    const [marketData, setMarketData] = useState({});
+    const [time, setTime] = useState(0);
+    const [speed, setSpeed] = useState(1);
+    const [accolades, setAccolades] = useState([]);
+    const [activeTab, setActiveTab] = useState('stocks'); // New state for active tab
 
-  // --- Game State ---
-  const [marketDaysLeft, setMarketDaysLeft] = useState(120);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [gameSpeed, setGameSpeed] = useState(1); // Speed multiplier
+    const initialDeposit = useRef(false);
+    const initialNetWorth = useRef(10000); // Store initial net worth
 
-  // --- Game Loop and Market Simulation ---
-  useEffect(() => {
-    if (isGameOver) return;
+    // --- Mini Challenges ---
+    const challenges = [
+        { id: 'profit_3_percent_monthly', description: 'Make 3% profit in a month', check: (start, end, days) => (end/start - 1) * 100 >= 3 && days <= 30 },
+        { id: 'profit_5_percent_quarterly', description: 'Make 5% profit in 90 days', check: (start, end, days) => (end/start - 1) * 100 >= 5 && days <= 90 },
+        { id: 'no_losses', description: 'Finish with no losses', check: (start, end) => end >= start },
+    ];
 
-    const gameTick = setInterval(() => {
-        setMarketDaysLeft(prev => prev - 1);
-    }, 4000 / gameSpeed);
+    useEffect(() => {
+        if (!initialDeposit.current) {
+            const depositedAmount = depositEarnings();
+            const newInitialNetWorth = 10000 + depositedAmount;
+            setCash(prevCash => prevCash + depositedAmount);
+            setNetWorth(newInitialNetWorth);
+            initialNetWorth.current = newInitialNetWorth;
+            initialDeposit.current = true;
+        }
+    }, [depositEarnings]);
 
-    const marketInterval = setInterval(() => {
-      setStocks(currentStocks => 
-        currentStocks.map(stock => {
-          const changePercent = (Math.random() - 0.49) * 0.08;
-          const newPrice = Math.max(10, stock.price * (1 + changePercent));
-          const priceChange = newPrice - stock.price;
-          return { ...stock, price: newPrice, history: [...stock.history, newPrice].slice(-50), change: priceChange };
-        })
-      );
-    }, 2000 / gameSpeed);
+    useEffect(() => {
+        const companies = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META'];
+        const initialMarketData = {};
+        companies.forEach(company => {
+            initialMarketData[company] = generateStockData(90);
+        });
+        setMarketData(initialMarketData);
+    }, []);
 
-    if (marketDaysLeft <= 0) {
-        setIsGameOver(true);
-    }
+    useEffect(() => {
+        const baseInterval = 2000;
+        const interval = baseInterval / speed;
 
-    return () => {
-        clearInterval(gameTick);
-        clearInterval(marketInterval);
-    }
-  }, [marketDaysLeft, isGameOver, gameSpeed]);
+        const marketInterval = setInterval(() => {
+            if (time < 89) {
+                setTime(prevTime => prevTime + 1);
+            } else {
+                clearInterval(marketInterval);
+                endGame();
+            }
+        }, interval);
 
-  const handleDeposit = () => {
-    const amount = depositEarnings();
-    setPortfolio(prev => ({...prev, cash: prev.cash + amount}));
-  }
+        return () => clearInterval(marketInterval);
+    }, [time, speed]);
 
-  const handleQuantityChange = (ticker, value) => {
-    if(isGameOver) return;
-    const quantity = parseInt(value, 10);
-    setTradeQuantities({ ...tradeQuantities, [ticker]: isNaN(quantity) ? 0 : quantity });
-  };
+    useEffect(() => {
+        let currentStockValue = 0;
+        stocks.forEach(stock => {
+            const currentPrice = marketData[stock.ticker] ? marketData[stock.ticker][time].close : 0;
+            currentStockValue += stock.shares * currentPrice;
+        });
+        setNetWorth(cash + currentStockValue);
+    }, [stocks, time, marketData, cash]);
 
-  const handleBuy = (ticker) => {
-      if(isGameOver) return;
-    const shares = tradeQuantities[ticker] || 0;
-    if (shares <= 0) return;
-    const stock = stocks.find(s => s.ticker === ticker);
-    const cost = stock.price * shares;
-    if (portfolio.cash >= cost) {
-      const newCash = portfolio.cash - cost;
-      const existingHolding = portfolio.holdings.find(h => h.ticker === ticker);
-      let newHoldings = existingHolding ? portfolio.holdings.map(h => h.ticker === ticker ? { ...h, shares: h.shares + shares } : h) : [...portfolio.holdings, { ticker, shares }];
-      setPortfolio({ cash: newCash, holdings: newHoldings });
-      setTransactions(prev => [{ type: 'BUY', ticker, shares, price: stock.price, id: Date.now() }, ...prev]);
-    } else { alert("Not enough cash for this transaction."); }
-  };
+    const generateStockData = (days) => {
+        let data = [];
+        let lastClose = Math.random() * 200 + 50;
+        for (let i = 0; i < days; i++) {
+            const open = lastClose * (1 + (Math.random() - 0.48) * 0.1);
+            const close = open * (1 + (Math.random() - 0.5) * 0.12);
+            const high = Math.max(open, close) * (1 + Math.random() * 0.05);
+            const low = Math.min(open, close) * (1 - Math.random() * 0.05);
+            data.push({ time: i, open, high, low, close });
+            lastClose = close;
+        }
+        return data;
+    };
 
-  const handleSell = (ticker) => {
-      if(isGameOver) return;
-    const shares = tradeQuantities[ticker] || 0;
-    if (shares <= 0) return;
-    const stock = stocks.find(s => s.ticker === ticker);
-    const holding = portfolio.holdings.find(h => h.ticker === ticker);
-    if (holding && holding.shares >= shares) {
-      const revenue = stock.price * shares;
-      const newCash = portfolio.cash + revenue;
-      const newHoldings = portfolio.holdings.map(h => h.ticker === ticker ? { ...h, shares: h.shares - shares } : h).filter(h => h.shares > 0);
-      setPortfolio({ cash: newCash, holdings: newHoldings });
-      setTransactions(prev => [{ type: 'SELL', ticker, shares, price: stock.price, id: Date.now() }, ...prev]);
-    } else { alert("You don\'t own enough shares to sell."); }
-  };
+    const handleTrade = (ticker, shares, action) => {
+        const currentPrice = marketData[ticker] ? marketData[ticker][time].close : 0;
+        if (!currentPrice) return;
 
-  const holdingsValue = useMemo(() => portfolio.holdings.reduce((acc, h) => acc + ((stocks.find(s => s.ticker === h.ticker)?.price || 0) * h.shares), 0), [portfolio.holdings, stocks]);
-  const netWorth = portfolio.cash + holdingsValue;
+        const cost = shares * currentPrice;
 
-  useEffect(() => {
-    if (transactions.length > 0 && activeLessonKey === 'welcome') setActiveLessonKey('whyStocks');
-    const volatileTransaction = transactions.find(t => t.price < 50);
-    if (volatileTransaction && activeLessonKey !== 'diversify') setActiveLessonKey('volatile');
-    if (portfolio.holdings.length === 1 && holdingsValue / netWorth > 0.7) setActiveLessonKey('diversify');
-  }, [transactions, portfolio.holdings, netWorth, holdingsValue, activeLessonKey]);
+        if (action === 'buy') {
+            if (cash >= cost) {
+                setCash(cash - cost);
+                const existingStock = stocks.find(s => s.ticker === ticker);
+                if (existingStock) {
+                    setStocks(stocks.map(s => s.ticker === ticker ? { ...s, shares: s.shares + shares } : s));
+                } else {
+                    setStocks([...stocks, { ticker, shares, purchasePrice: currentPrice }]);
+                }
+                logTrade(ticker, shares, currentPrice, 'Buy');
+            } else {
+                alert('Not enough cash!');
+            }
+        } else if (action === 'sell') {
+            const stockToSell = stocks.find(s => s.ticker === ticker);
+            if (stockToSell && stockToSell.shares >= shares) {
+                setCash(cash + cost);
+                setStocks(stocks.map(s => s.ticker === ticker ? { ...s, shares: s.shares - shares } : s).filter(s => s.shares > 0));
+                logTrade(ticker, shares, currentPrice, 'Sell');
+            } else {
+                alert('Not enough shares to sell!');
+            }
+        }
+    };
 
+    const logTrade = (ticker, shares, price, type) => {
+        const logEntry = `${new Date().toLocaleTimeString()}: ${type} ${shares} of ${ticker} @ $${price.toFixed(2)}`;
+        setTradeLog([logEntry, ...tradeLog]);
+    };
 
-  const styles = {
-    container: { background: theme.background, color: theme.text, minHeight: 'calc(100vh - 60px)', fontFamily: `'Segoe UI', sans-serif`, position: 'relative' },
-    header: { textAlign: 'center', padding: '40px 20px' },
-    main: { display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px', padding: '0 30px' },
-    card: { background: theme.cardBg, borderRadius: '12px', padding: '20px', boxShadow: `0 4px 6px rgba(0,0,0,${theme.background === '#1a1a1d' ? 0.2 : 0.05})`, marginBottom: '20px', border: `1px solid ${theme.borderColor}` },
-    cardTitle: { fontSize: '1.5rem', fontWeight: '600', color: theme.primary, marginBottom: '20px' },
-    table: { width: '100%', borderCollapse: 'collapse' },
-    th: { textAlign: 'left', padding: '12px', borderBottom: `2px solid ${theme.borderColor}`, color: theme.textSecondary, textTransform: 'uppercase', fontSize: '0.9rem' },
-    td: { padding: '12px', borderBottom: `1px solid ${theme.borderColor}`, verticalAlign: 'middle', color: theme.text },
-    input: { width: '60px', padding: '8px', marginRight: '10px', borderRadius: '6px', border: `1px solid ${theme.borderColor}`, background: theme.inputBg, color: theme.text },
-    button: { padding: '8px 12px', fontSize: '0.9rem', cursor: 'pointer', borderRadius: '6px', border: 'none', marginRight: '5px', fontWeight: 'bold' },
-    backButton: { display: 'block', margin: '40px auto', padding: '12px 25px', background: theme.primary, color: theme.cardBg, border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-    lessonCard: { background: theme.lessonBg, borderLeft: `5px solid ${theme.primary}` },
-    lessonTitle: { color: theme.primary },
-    lessonContent: { lineHeight: 1.6, fontSize: '0.95rem', color: theme.textSecondary },
-    depositButton: { background: theme.accentPositive, color: 'white', padding: '10px 15px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold', marginBottom: '15px' },
-    timerContainer: { display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '20px', gap: '20px'},
-    timer: { fontSize: '1.5rem', fontWeight: 'bold', color: theme.accent },
-    speedButton: { padding: '8px 16px', fontSize: '1rem', cursor: 'pointer', borderRadius: '6px', border: `1px solid ${theme.accent}`, background: 'transparent', color: theme.accent, fontWeight: 'bold' },
-    gameOverOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: `rgba(${theme.background === '#1a1a1d' ? '26,26,29,0.9' : '241,245,249,0.9'})`, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
-  };
+    const endGame = () => {
+        const finalNetWorth = netWorth;
+        const startNetWorth = initialNetWorth.current;
+        const days = time + 1;
 
-  const handleEndGameAndExit = () => {
-      onGameEnd(netWorth);
-  }
+        const completedAccolades = challenges
+            .filter(c => c.check(startNetWorth, finalNetWorth, days))
+            .map(c => c.description);
+            
+        onGameEnd(finalNetWorth, completedAccolades);
+    };
 
-  const toggleSpeed = () => {
-      setGameSpeed(current => {
-          if(current === 4) return 1;
-          return current * 2;
-      })
-  }
+    const styles = {
+        container: { padding: '20px', background: theme.background, color: theme.text, display: 'flex', gap: '20px' },
+        leftPanel: { flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' },
+        rightPanel: { flex: 3, display: 'flex', flexDirection: 'column', gap: '20px' },
+        section: { background: theme.cardBg, padding: '20px', borderRadius: '12px', border: `1px solid ${theme.borderColor}` },
+        title: { fontSize: '1.5rem', fontWeight: 'bold', color: theme.primary, marginBottom: '15px' },
+        stat: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px' },
+        tradeLog: { height: '200px', overflowY: 'auto', border: `1px solid ${theme.borderColor}`, padding: '10px', borderRadius: '8px' },
+        stockDisplay: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' },
+        speedControls: { display: 'flex', justifyContent: 'center', gap: '10px', alignItems: 'center', marginTop: '10px' },
+        speedButton: { background: theme.secondary, color: 'white', border: 'none', padding: '8px 12px', borderRadius: '5px', cursor: 'pointer' },
+        activeSpeed: { background: theme.primary },
+        challengeList: { listStyle: 'none', padding: 0, margin: 0 },
+        challengeItem: { marginBottom: '8px', color: theme.textSecondary },
+        tabs: { display: 'flex', borderBottom: `1px solid ${theme.borderColor}`, marginBottom: '20px' },
+        tab: { padding: '10px 20px', cursor: 'pointer', borderBottom: '2px solid transparent', color: theme.textSecondary },
+        activeTab: { color: theme.primary, borderBottom: `2px solid ${theme.primary}` },
+        comingSoon: { textAlign: 'center', padding: '50px', fontSize: '1.5rem', color: theme.textSecondary }
+    };
 
-  if (isGameOver) {
     return (
         <div style={styles.container}>
-            <div style={styles.gameOverOverlay}>
-                <h1 style={{fontSize: '4rem', color: theme.accentNegative}}>Market Closed</h1>
-                <p style={{fontSize: '1.5rem', color: theme.text, margin: '20px 0'}}>The simulation has ended.</p>
-                <div style={{...styles.card, width: '300px', textAlign: 'center'}}>
-                    <h2 style={styles.cardTitle}>Final Net Worth</h2>
-                    <p style={{fontSize: '2.5rem', fontWeight: 'bold', color: theme.accentPositive}}>${netWorth.toFixed(2)}</p>
+            <div style={styles.leftPanel}>
+                <div style={styles.section}>
+                    <h2 style={styles.title}>Portfolio Stats</h2>
+                    <div style={styles.stat}><span>Cash:</span><span>${cash.toFixed(2)}</span></div>
+                    <div style={styles.stat}><span>Net Worth:</span><span>${netWorth.toFixed(2)}</span></div>
+                    <div style={styles.stat}><span>Day:</span><span>{time + 1}/90</span></div>
+                    <div style={styles.speedControls}>
+                        <span>Speed:</span>
+                        {[1, 2, 4, 8].map(s => (
+                            <button 
+                                key={s} 
+                                onClick={() => setSpeed(s)} 
+                                style={{...styles.speedButton, ...(speed === s ? styles.activeSpeed : {})}}>
+                                {s}x
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={endGame} style={{...styles.button, background: theme.textSecondary, color: theme.background, width: '100%', marginTop: '10px'}}>End Game & See Score</button>
                 </div>
-                <button onClick={handleEndGameAndExit} style={{...styles.backButton, marginTop: '30px'}}>View Leaderboard</button>
+                 <div style={styles.section}>
+                    <h2 style={styles.title}>Mini-Challenges</h2>
+                    <ul style={styles.challengeList}>
+                        {challenges.map(c => <li key={c.id} style={styles.challengeItem}>{c.description}</li>)}
+                    </ul>
+                </div>
+                <div style={styles.section}>
+                    <h2 style={styles.title}>My Holdings</h2>
+                    {activeTab === 'stocks' && (
+                        stocks.length > 0 ? (
+                            stocks.map(stock => (
+                                <div key={stock.ticker} style={styles.stat}>
+                                    <span>{stock.ticker}: {stock.shares} shares</span>
+                                    <span>Avg: ${stock.purchasePrice.toFixed(2)}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <p>You don't own any stocks yet.</p>
+                        )
+                    )}
+                    {activeTab === 'options' && (
+                         <p>You don't own any options yet.</p>
+                    )}
+                </div>
+                <div style={styles.section}>
+                    <h2 style={styles.title}>Trade Log</h2>
+                    <div style={styles.tradeLog}>
+                        {tradeLog.map((log, i) => <div key={i}>{log}</div>)}
+                    </div>
+                </div>
+            </div>
+            <div style={styles.rightPanel}>
+                <div style={styles.section}>
+                    <div style={styles.tabs}>
+                        <div style={{...styles.tab, ...(activeTab === 'stocks' ? styles.activeTab : {})}} onClick={() => setActiveTab('stocks')}>Stocks</div>
+                        <div style={{...styles.tab, ...(activeTab === 'options' ? styles.activeTab : {})}} onClick={() => setActiveTab('options')}>Options</div>
+                    </div>
+                    {activeTab === 'stocks' && (
+                        <div style={styles.stockDisplay}>
+                            {Object.keys(marketData).map(ticker => (
+                                <Stock 
+                                    key={ticker} 
+                                    ticker={ticker} 
+                                    marketData={marketData} 
+                                    time={time} 
+                                    handleTrade={handleTrade} 
+                                    theme={theme} 
+                                />
+                            ))}
+                        </div>
+                    )}
+                    {activeTab === 'options' && (
+                        <div style={styles.comingSoon}>
+                            The options market is under development. Check back soon for advanced trading features!
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
-    )
-  }
-
-  return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-          <h1 style={{fontSize: '3rem', color: theme.primary}}>Portfolio Simulator</h1>
-          <div style={styles.timerContainer}>
-            <div style={styles.timer}>Market Days Left: {marketDaysLeft}</div>
-            <button onClick={toggleSpeed} style={styles.speedButton}>Speed: {gameSpeed}x</button>
-          </div>
-      </header>
-      <main style={styles.main}>
-        {/* Left Column */}
-        <div>
-          <div style={styles.card}>
-             <h2 style={styles.cardTitle}>Market</h2>
-             <table style={styles.table}>
-               <thead><tr><th style={styles.th}>Ticker</th><th style={styles.th}>Chart</th><th style={styles.th}>Price</th><th style={styles.th}>Actions</th></tr></thead>
-               <tbody>
-                 {stocks.map(stock => (
-                   <tr key={stock.ticker}>
-                     <td style={styles.td}>{stock.ticker} <span style={{color: theme.textSecondary, fontSize: '0.9rem'}}>- {stock.name}</span></td>
-                     <td style={styles.td}><CandlestickChart history={stock.history} /></td>
-                     <td style={styles.td}>${stock.price.toFixed(2)} <span style={{color: stock.change >= 0 ? theme.accentPositive : theme.accentNegative, fontSize: '0.9rem'}}>{stock.change.toFixed(2)}</span></td>
-                     <td style={styles.td}>
-                       <input type="number" min="0" style={styles.input} value={tradeQuantities[stock.ticker] || ''} onChange={e => handleQuantityChange(stock.ticker, e.target.value)} placeholder="Qty" />
-                       <button onClick={() => handleBuy(stock.ticker)} style={{...styles.button, background: theme.accentPositive, color: 'white'}}>Buy</button>
-                       <button onClick={() => handleSell(stock.ticker)} style={{...styles.button, background: theme.accentNegative, color: 'white'}}>Sell</button>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
-           <div style={styles.card}>
-              <h2 style={styles.cardTitle}>Your Holdings</h2>
-              {portfolio.holdings.length === 0 ? <p style={{color: theme.textSecondary}}>You do not own any stocks.</p> : (
-                  <table style={styles.table}>
-                      <thead><tr><th style={styles.th}>Ticker</th><th style={styles.th}>Shares</th><th style={styles.th}>Current Value</th></tr></thead>
-                      <tbody>
-                          {portfolio.holdings.map(h => {
-                              const stock = stocks.find(s => s.ticker === h.ticker);
-                              const currentValue = h.shares * (stock?.price || 0);
-                              return (
-                                  <tr key={h.ticker}>
-                                      <td style={styles.td}>{h.ticker}</td>
-                                      <td style={styles.td}>{h.shares}</td>
-                                      <td style={styles.td}>${currentValue.toFixed(2)}</td>
-                                  </tr>
-                              )
-                          })}
-                      </tbody>
-                  </table>
-              )}
-           </div>
-        </div>
-
-        {/* Right Column */}
-        <div>
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Your Portfolio</h2>
-            {gameBalance > 0 && (
-                <button onClick={handleDeposit} style={styles.depositButton}>Deposit ${gameBalance.toLocaleString()} from Minigame</button>
-            )}
-            <div style={{fontSize: '1.1rem', color: theme.text}}>
-              <p>Cash: <strong>${portfolio.cash.toFixed(2)}</strong></p>
-              <p>Holdings Value: <strong>${holdingsValue.toFixed(2)}</strong></p>
-              <hr style={{margin: '15px 0', border: 'none', borderTop: `1px solid ${theme.borderColor}`}} />
-              <p style={{fontSize: '1.3rem', fontWeight: 'bold'}}>Net Worth: <strong>${netWorth.toFixed(2)}</strong></p>
-            </div>
-          </div>
-          <div style={{...styles.card, ...styles.lessonCard}}>
-            <h2 style={{...styles.cardTitle, ...styles.lessonTitle}}>{lessons[activeLessonKey].title}</h2>
-            <p style={styles.lessonContent}>{lessons[activeLessonKey].content}</p>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+    );
 };
 
 export default Portfolio;

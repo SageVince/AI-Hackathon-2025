@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const ApiSettings = ({ backToGrid, theme, apiKey, apiProvider, model, onApiSettingsChange }) => {
 
@@ -9,32 +9,31 @@ const ApiSettings = ({ backToGrid, theme, apiKey, apiProvider, model, onApiSetti
     const [availableModels, setAvailableModels] = useState([]);
     const [fetchingModels, setFetchingModels] = useState(false);
 
-
-    useEffect(() => {
-        const currentProvider = localApiProvider.toLowerCase();
-        // Reset model and available models if provider changes
-        setAvailableModels([]);
-        if (currentProvider === 'google') {
-            setLocalModel('gemini-1.5-pro');
-        } else if (currentProvider === 'openai') {
-            setLocalModel('gpt-3.5-turbo');
-        } else if (currentProvider === 'ollama') {
-            setLocalModel('llama2');
-        }
-    }, [localApiProvider]);
-
-    const fetchModels = async () => {
+    const fetchModels = useCallback(async () => {
         setFetchingModels(true);
         let endpoint = '';
         let headers = {};
 
-        if (localApiProvider === 'google') {
+        const provider = localApiProvider.toLowerCase();
+
+        if (provider === 'google') {
+            if (!localApiKey) {
+                alert("Please enter a Google API Key.");
+                setFetchingModels(false);
+                return;
+            }
             endpoint = `https://generativelanguage.googleapis.com/v1beta/models?key=${localApiKey}`;
-        } else if (localApiProvider === 'openai') {
+        } else if (provider === 'openai') {
+            if (!localApiKey) {
+                alert("Please enter an OpenAI API Key.");
+                setFetchingModels(false);
+                return;
+            }
             endpoint = `https://api.openai.com/v1/models`;
             headers['Authorization'] = `Bearer ${localApiKey}`;
-        } else if (localApiProvider === 'ollama') {
-            endpoint = `http://localhost:11434/api/tags`;
+        } else if (provider === 'ollama') {
+            const baseUrl = localApiKey || 'http://localhost:11434';
+            endpoint = `${baseUrl}/api/tags`;
         }
 
         try {
@@ -45,24 +44,42 @@ const ApiSettings = ({ backToGrid, theme, apiKey, apiProvider, model, onApiSetti
             const data = await response.json();
 
             let models = [];
-            if (localApiProvider === 'google') {
+            if (provider === 'google') {
                 models = data.models.map(m => m.name.replace('models/', '')).filter(m => m.includes('gemini'));
-            } else if (localApiProvider === 'openai') {
+            } else if (provider === 'openai') {
                 models = data.data.map(m => m.id).filter(m => m.includes('gpt'));
-            } else if (localApiProvider === 'ollama') {
+            } else if (provider === 'ollama') {
                 models = data.models.map(m => m.name);
             }
             setAvailableModels(models);
-            if (models.length > 0) {
+            if (models.length > 0 && !models.includes(localModel)) {
                 setLocalModel(models[0]);
             }
         } catch (error) {
             console.error("Error fetching models:", error);
-            alert("Failed to fetch models. Please check your API key and network connection.");
+            alert(`Failed to fetch models. For Ollama, make sure it's running. For others, check your API key and network connection.`);
+            setAvailableModels([]); // Clear models on error
         }
 
         setFetchingModels(false);
-    };
+    }, [localApiProvider, localApiKey, localModel]);
+
+    useEffect(() => {
+        const currentProvider = localApiProvider.toLowerCase();
+        setAvailableModels([]);
+
+        if (currentProvider === 'google') {
+            setLocalModel(model.includes('gemini') ? model : 'gemini-1.5-pro');
+            if (apiProvider.toLowerCase() !== 'google') setLocalApiKey('');
+        } else if (currentProvider === 'openai') {
+            setLocalModel(model.includes('gpt') ? model : 'gpt-3.5-turbo');
+            if (apiProvider.toLowerCase() !== 'openai') setLocalApiKey('');
+        } else if (currentProvider === 'ollama') {
+            setLocalModel(model.includes('llama') ? model : 'llama2');
+            if (apiProvider.toLowerCase() !== 'ollama') setLocalApiKey('http://localhost:11434');
+            fetchModels();
+        }
+    }, [localApiProvider, model, apiProvider, fetchModels]);
 
     const handleSave = () => {
         onApiSettingsChange({
@@ -159,14 +176,16 @@ const ApiSettings = ({ backToGrid, theme, apiKey, apiProvider, model, onApiSetti
             </div>
 
             <div style={styles.formGroup}>
-                <label htmlFor="api-key" style={styles.label}>API Key</label>
+                <label htmlFor="api-key" style={styles.label}>
+                    {localApiProvider === 'ollama' ? 'Ollama API Base URL' : 'API Key'}
+                </label>
                 <input 
-                    type="password" // Hide the key for security
+                    type={localApiProvider === 'ollama' ? 'text' : 'password'}
                     id="api-key" 
                     style={styles.input} 
                     value={localApiKey} 
                     onChange={e => setLocalApiKey(e.target.value)} 
-                    placeholder="Enter your API key here"
+                    placeholder={localApiProvider === 'ollama' ? 'e.g., http://localhost:11434' : 'Enter your API key here'}
                 />
             </div>
 
@@ -177,11 +196,11 @@ const ApiSettings = ({ backToGrid, theme, apiKey, apiProvider, model, onApiSetti
                         {availableModels.length > 0 ? (
                             availableModels.map(m => <option key={m} value={m}>{m}</option>)
                         ) : (
-                            <option value={localModel}>{localModel}</option>
+                            <option value={localModel} disabled>{localModel}</option>
                         )}
                     </select>
                     <button onClick={fetchModels} disabled={fetchingModels} style={{...styles.button, padding: '10px 15px', background: theme.primary, color: 'white'}}>
-                        {fetchingModels ? 'Fetching...' : 'Get Models'}
+                        {fetchingModels ? 'Fetching...' : (localApiProvider === 'ollama' ? 'Refresh Local Models' : 'Get Models')}
                     </button>
                 </div>
             </div>

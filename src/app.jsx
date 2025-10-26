@@ -8,25 +8,26 @@ import Portfolio from './components/Portfolio';
 import Leaderboard from './components/Leaderboard';
 import AIAssistants from './components/AIAssistants';
 import Savings from './components/Savings';
-import Knowledge from './components/Knowledge'; // Import Knowledge
+import Knowledge from './components/Knowledge';
 import TopBar from './components/TopBar';
 import { lightTheme, darkTheme } from './themes';
+
+const INITIAL_CAPITAL = 100000;
 
 export default function App() {
   const [currentView, setCurrentView] = useState('rpg-menu');
   const [startScene, setStartScene] = useState(0);
   
   const [gameBalance, setGameBalance] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  const [highScore, setHighScore] = useState(0); // This will store the highest *final net worth*
+  const [userAccolades, setUserAccolades] = useState([]);
   
   const [theme, setTheme] = useState(lightTheme);
   
-  // State for API settings
   const [apiKey, setApiKey] = useState('');
   const [apiProvider, setApiProvider] = useState('google');
   const [model, setModel] = useState('gemini-1.5-pro');
 
-  // Load settings from local storage on initial render
   useEffect(() => {
     const savedApiKey = localStorage.getItem('apiKey');
     const savedApiProvider = localStorage.getItem('apiProvider');
@@ -66,9 +67,16 @@ export default function App() {
     handleNavigation('portfolio');
   }
 
-  const handlePortfolioEnd = (finalNetWorth) => {
-    if (finalNetWorth > highScore) {
-      setHighScore(finalNetWorth);
+  // This function now correctly handles the result from the Portfolio simulation.
+  const handlePortfolioEnd = (gain, accolades) => {
+    // The value from the portfolio is the gain/loss. We calculate the final net worth.
+    const finalNetWorth = INITIAL_CAPITAL + gain;
+    const roundedNetWorth = Math.round(finalNetWorth);
+
+    // We only update the high score if the new net worth is greater than the previous high score.
+    if (roundedNetWorth > highScore) {
+      setHighScore(roundedNetWorth); // Set the high score to the *actual final net worth*.
+      setUserAccolades(accolades);
     }
     setCurrentView('leaderboard');
   }
@@ -96,7 +104,8 @@ export default function App() {
                   theme={theme}
                />;
       case 'leaderboard':
-        return <Leaderboard backToMenu={handleBackToMenu} userHighScore={highScore} theme={theme} />;
+        // Pass the highScore (which is the final net worth) to the Leaderboard.
+        return <Leaderboard backToMenu={handleBackToMenu} userHighScore={highScore} userAccolades={userAccolades} theme={theme} />;
       case 'ai-assistants':
         return <AIAssistants 
                   backToMenu={handleBackToMenu} 
@@ -108,7 +117,7 @@ export default function App() {
                 />;
       case 'savings':
         return <Savings theme={theme} />;
-      case 'knowledge': // Add knowledge view
+      case 'knowledge':
         return <Knowledge theme={theme} />;
       case 'rpg-menu':
       default:
