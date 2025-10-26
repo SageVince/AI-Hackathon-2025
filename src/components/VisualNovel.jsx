@@ -1,39 +1,9 @@
 // @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { ChevronRight, RotateCcw, Volume2, VolumeX, Home } from 'lucide-react';
+import { characters, scenes } from '../story.js';
 
-// ---- Character PNGs ----
-import cyberSageImg from '@/assets/cybersage.png';
-import ecuadorKnucklesImg from '@/assets/ecuadorianknuckles.jpg';
-import johnPorkImg from '@/assets/johnpork.PNG';
-import porkBondyImg from '@/assets/porkbondy.PNG';
-import samuelJacksonImg from '@/assets/samueljackson.PNG';
-import snoopDogImg from '@/assets/snoopdog.jpg';
-import stonkPorkImg from '@/assets/stonkpork.png';
-import whaleWhispererImg from '@/assets/thewhalewhisperer.PNG';
-import yapDollarImg from '@/assets/yapdollar.jpg';
-import yenjuImg from '@/assets/yenju.png';
-
-// ---- Characters (PNG-only version) ----
-const characters = {
-  stonkPork: { name: 'Stonk Pork', img: stonkPorkImg, isProtagonist: true },
-  johnPork: { name: 'John Pork', img: johnPorkImg },
-  snoopDog: { name: 'Snoop Dogg', img: snoopDogImg },
-  porkBondy: { name: 'Pork Bondy', img: porkBondyImg },
-  yapDollar: { name: 'Yap Dollar', img: yapDollarImg },
-  ecuadorKnuckles: { name: 'Ecuador Knuckles', img: ecuadorKnucklesImg },
-  cyberSage: { name: 'Cyber Sage', img: cyberSageImg },
-  saga: { name: 'Saga', img: null },
-  whaleWhisperer: { name: 'The Whale Whisperer', img: whaleWhispererImg },
-  samuelJackson: { name: 'Samuel L. Jackson', img: samuelJacksonImg },
-  yenju: { name: 'Yenju', img: yenjuImg },
-  narrator: { name: 'Narrator', img: null }
-};
-
-// ---- Full Story (same as before) ----
-// (Truncated for brevity; same content as last version with all 9 chapters)
-// ---- Function ----
-function VisualNovel() {
+function VisualNovel({ backToMenu }) {
   const [currentScene, setCurrentScene] = useState(0);
   const [currentLine, setCurrentLine] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
@@ -51,10 +21,16 @@ function VisualNovel() {
   }, [currentLineData]);
 
   useEffect(() => {
-    if (!currentLineData) return;
+    if (!currentLineData) {
+        if (currentScene >= scenes.length) {
+            backToMenu();
+        }
+        return;
+    }
     const text = currentLineData.text;
     setIsTyping(true);
     setDisplayedText('');
+    setShowChoices(false);
     let index = 0;
     const interval = setInterval(() => {
       if (index < text.length) {
@@ -67,7 +43,7 @@ function VisualNovel() {
       }
     }, 30);
     return () => clearInterval(interval);
-  }, [currentLine, currentScene]);
+  }, [currentLine, currentScene, backToMenu, currentLineData, scenes.length]);
 
   const handleNext = () => {
     if (!currentLineData) return;
@@ -78,17 +54,42 @@ function VisualNovel() {
       return;
     }
     if (showChoices) return;
-    if (currentLine < currentSceneData.lines.length - 1) setCurrentLine(currentLine + 1);
-    else if (currentScene < scenes.length - 1) { setCurrentScene(currentScene + 1); setCurrentLine(0); }
+    if (currentLine < currentSceneData.lines.length - 1) {
+      setCurrentLine(currentLine + 1);
+    } else if (currentScene < scenes.length - 1) {
+      setCurrentScene(currentScene + 1);
+      setCurrentLine(0);
+    } else {
+        backToMenu();
+    }
   };
 
   const handleChoice = (option) => {
-    setGameState(prev => ({ money: prev.money + option.money, knowledge: prev.knowledge + option.knowledge }));
+    setGameState(prev => ({ money: prev.money + (option.money || 0), knowledge: prev.knowledge + (option.knowledge || 0) }));
     setShowChoices(false);
-    handleNext();
+    if (currentLine < currentSceneData.lines.length - 1) {
+        setCurrentLine(currentLine + 1);
+    } else if (currentScene < scenes.length - 1) {
+        setCurrentScene(currentScene + 1);
+        setCurrentLine(0);
+    } else {
+        backToMenu();
+    }
   };
 
-  const handleRestart = () => { setCurrentScene(0); setCurrentLine(0); setGameState({ money: 0, knowledge: 0 }); setShowChoices(false); };
+  const handleRestart = () => {
+    setCurrentScene(0);
+    setCurrentLine(0);
+    setGameState({ money: 0, knowledge: 0 });
+    setShowChoices(false);
+  };
+
+  if (!currentSceneData || !currentLineData) {
+    return <div>Loading...</div>;
+  }
+  
+  const speakerName = currentChar?.name;
+  const speakerImage = currentChar?.img;
 
   return (
     <div className={`min-h-screen ${currentSceneData.background} text-white flex flex-col relative overflow-hidden`}>
@@ -99,6 +100,9 @@ function VisualNovel() {
           <span className="text-blue-400">📚 Knowledge: {gameState.knowledge}</span>
         </div>
         <div className="flex gap-4">
+          <button onClick={backToMenu} className="hover:text-green-400 p-2 hover:bg-white/10 rounded">
+              <Home size={20} />
+          </button>
           <button onClick={() => setSoundEnabled(!soundEnabled)} className="hover:text-green-400 p-2 hover:bg-white/10 rounded">
             {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
           </button>
@@ -114,16 +118,19 @@ function VisualNovel() {
       </div>
 
       {/* Character Display */}
-      <div className="flex-1 flex items-center justify-center relative">
-        {currentChar?.img && currentLineData?.speaker !== 'narrator' && (
-          <img src={currentChar.img} alt={currentChar.name} className="max-h-[500px] rounded-lg shadow-2xl transition-all duration-500" />
+      <div className="flex-1 flex items-center justify-center relative p-4">
+        {speakerImage && currentLineData.speaker !== 'narrator' && (
+          <img src={speakerImage} alt={speakerName} className="max-h-[50vh] max-w-[80%] object-contain rounded-lg shadow-2xl transition-all duration-500" />
         )}
       </div>
 
       {/* Text Box */}
       <div className="relative z-20 p-6">
         <div className="bg-gradient-to-r from-black via-gray-900 to-black bg-opacity-95 rounded-xl p-4 border-4 border-blue-500 max-w-4xl mx-auto w-full shadow-2xl">
-          <div className="text-white text-lg leading-relaxed min-h-24 font-sans">
+          {speakerName && speakerName !== 'Narrator' && (
+            <div className="text-2xl font-bold text-yellow-300 mb-2">{speakerName}</div>
+          )}
+          <div className="text-white text-lg leading-relaxed min-h-[6rem] font-sans">
             {displayedText}
             {isTyping && <span className="animate-pulse ml-1">▌</span>}
           </div>
@@ -141,7 +148,7 @@ function VisualNovel() {
 
           {!showChoices && (
             <button onClick={handleNext} className="mt-4 flex items-center gap-2 bg-green-600 hover:bg-green-500 px-6 py-2 rounded-full ml-auto transition-all transform hover:scale-105 shadow-lg font-bold border-2 border-white border-opacity-20">
-              {isTyping ? 'Skip' : currentLine < currentSceneData.lines.length - 1 || currentScene < scenes.length - 1 ? 'Next' : 'Restart'}
+              {isTyping ? 'Skip' : 'Next'}
               <ChevronRight size={18} />
             </button>
           )}
