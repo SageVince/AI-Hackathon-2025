@@ -1,185 +1,100 @@
-// @ts-nocheck
-import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, RotateCcw, Volume2, VolumeX, Home, Play, FastForward } from 'lucide-react';
-import { characters, scenes } from '../story.js';
 
-function VisualNovel({ backToMenu, startScene = 0 }) {
+import React, { useState, useEffect } from 'react';
+import { scenes } from '../story.js';
+
+const VisualNovel = ({ backToMenu, startScene = 0, theme }) => {
   const [currentScene, setCurrentScene] = useState(startScene);
-  const [currentLine, setCurrentLine] = useState(0);
-  const [displayedText, setDisplayedText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [showChoices, setShowChoices] = useState(false);
-  const [gameState, setGameState] = useState({ money: 0, knowledge: 0 });
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [autoplay, setAutoplay] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [autoChoice, setAutoChoice] = useState(false);
+  const [charPosition, setCharPosition] = useState('center');
 
-  const currentSceneData = scenes[currentScene];
-  const currentLineData = currentSceneData?.lines[currentLine];
-  const currentChar = useMemo(() => {
-    if (!currentLineData) return null;
-    if (currentLineData.speaker === 'narrator') return characters.narrator;
-    return characters[currentLineData.speaker];
-  }, [currentLineData]);
+  const { text, character, position, background } = scenes[currentScene];
 
   useEffect(() => {
-    if (!currentLineData) {
-        if (currentScene >= scenes.length) {
-            backToMenu();
-        }
-        return;
-    }
-    const text = currentLineData.text;
-    setIsTyping(true);
-    setDisplayedText('');
-    setShowChoices(false);
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index < text.length) {
-        setDisplayedText(text.slice(0, index + 1));
-        index++;
-      } else {
-        setIsTyping(false);
-        if (currentLineData.choice) {
-          setShowChoices(true);
-          if (autoChoice) {
-            handleChoice(currentLineData.choice.options[0]);
-          }
-        } else if (autoplay) {
-          handleNext();
-        }
-        clearInterval(interval);
-      }
-    }, 30 / speed);
-    return () => clearInterval(interval);
-  }, [currentLine, currentScene, backToMenu, currentLineData, scenes.length, speed, autoplay, autoChoice]);
+    setCharPosition(position);
+  }, [position]);
 
   const handleNext = () => {
-    if (!currentLineData) return;
-    if (isTyping) {
-      setDisplayedText(currentLineData.text);
-      setIsTyping(false);
-      if (currentLineData.choice) {
-        setShowChoices(true);
-        if (autoChoice) {
-          handleChoice(currentLineData.choice.options[0]);
-        }
-      }
-      return;
-    }
-    if (showChoices) return;
-    if (currentLine < currentSceneData.lines.length - 1) {
-      setCurrentLine(currentLine + 1);
-    } else if (currentScene < scenes.length - 1) {
+    if (currentScene < scenes.length - 1) {
       setCurrentScene(currentScene + 1);
-      setCurrentLine(0);
-    } else {
-        backToMenu();
     }
   };
 
-  const handleChoice = (option) => {
-    setGameState(prev => ({ money: prev.money + (option.money || 0), knowledge: prev.knowledge + (option.knowledge || 0) }));
-    setShowChoices(false);
-    if (currentLine < currentSceneData.lines.length - 1) {
-        setCurrentLine(currentLine + 1);
-    } else if (currentScene < scenes.length - 1) {
-        setCurrentScene(currentScene + 1);
-        setCurrentLine(0);
-    } else {
-        backToMenu();
+  const handleBack = () => {
+    if (currentScene > 0) {
+      setCurrentScene(currentScene - 1);
     }
   };
 
-  const handleRestart = () => {
-    setCurrentScene(startScene);
-    setCurrentLine(0);
-    setGameState({ money: 0, knowledge: 0 });
-    setShowChoices(false);
+  const styles = {
+    container: {
+      fontFamily: `'Segoe UI', 'Roboto', sans-serif`,
+      height: 'calc(100vh - 60px)',
+      background: `url(${background}) no-repeat center center / cover`,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'flex-end',
+      position: 'relative',
+      transition: 'background-image 0.5s ease-in-out',
+      backgroundSize: 'cover',
+    },
+    character: {
+      position: 'absolute',
+      bottom: '20vh', // Position character above the textbox
+      height: '80vh',
+      transition: 'all 0.5s ease-in-out',
+      left: charPosition === 'left' ? '5%' : charPosition === 'right' ? '55%' : '30%',
+      transform: charPosition === 'center' ? 'translateX(-50%)' : 'none',
+    },
+    textBox: {
+      background: theme.cardBg, // Semi-transparent white
+      color: theme.text,
+      padding: '30px',
+      margin: '20px',
+      borderRadius: '15px',
+      border: `1px solid ${theme.borderColor}`,
+      boxShadow: `0 4px 15px rgba(0,0,0,${theme.background === '#1a1a1d' ? 0.3 : 0.1})`,
+      zIndex: 2,
+    },
+    characterName: {
+      fontWeight: 'bold',
+      fontSize: '1.5rem',
+      color: theme.primary, // Capital One Blue
+      marginBottom: '10px',
+    },
+    dialogue: {
+      fontSize: '1.2rem',
+      lineHeight: '1.6',
+    },
+    buttonContainer: {
+        position: 'absolute',
+        bottom: '20px',
+        right: '40px',
+        zIndex: 3,
+        display: 'flex',
+        gap: '10px',
+      },
+    button: {
+        padding: '10px 20px',
+        fontSize: '1rem',
+        cursor: 'pointer',
+        borderRadius: '8px',
+        border: 'none',
+        fontWeight: 'bold',
+    },
   };
-
-  if (!currentSceneData || !currentLineData) {
-    return <div>Loading...</div>;
-  }
-  
-  const speakerName = currentChar?.name;
-  const speakerImage = currentChar?.img;
 
   return (
-    <div className={`min-h-screen ${currentSceneData.background} text-white flex flex-col relative overflow-hidden`}>
-      {/* Header */}
-      <div className="bg-black/70 p-4 flex justify-between items-center border-b-2 border-gray-700">
-        <div className="flex gap-6 text-sm font-bold">
-          <span className="text-green-400">💰 ${gameState.money}</span>
-          <span className="text-blue-400">📚 Knowledge: {gameState.knowledge}</span>
-        </div>
-        <div className="flex gap-4">
-            <button onClick={() => setAutoplay(!autoplay)} className={`p-2 hover:bg-white/10 rounded ${autoplay ? 'text-green-400' : ''}`}>
-                <Play size={20} />
-            </button>
-            <button onClick={() => setSpeed(speed === 1 ? 2 : 1)} className={`p-2 hover:bg-white/10 rounded ${speed === 2 ? 'text-green-400' : ''}`}>
-                <FastForward size={20} />
-            </button>
-            <button onClick={() => setAutoChoice(!autoChoice)} className={`p-2 hover:bg-white/10 rounded ${autoChoice ? 'text-green-400' : ''}`}>
-                Auto-Choice
-            </button>
-          <button onClick={backToMenu} className="hover:text-green-400 p-2 hover:bg-white/10 rounded">
-              <Home size={20} />
-          </button>
-          <button onClick={() => setSoundEnabled(!soundEnabled)} className="hover:text-green-400 p-2 hover:bg-white/10 rounded">
-            {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-          </button>
-          <button onClick={handleRestart} className="hover:text-green-400 p-2 hover:bg-white/10 rounded">
-            <RotateCcw size={20} />
-          </button>
-        </div>
+    <div style={styles.container}>
+      {character && <img src={character} alt="Character" style={styles.character} />}
+      <div style={styles.buttonContainer}>
+          <button onClick={handleBack} style={{...styles.button, background: theme.inputBg, color: theme.text}}>Back</button>
+          <button onClick={handleNext} style={{...styles.button, background: theme.primary, color: theme.cardBg}}>Next</button>
       </div>
-
-      {/* Title */}
-      <div className="text-center py-4 bg-black/50 border-b-2 border-yellow-600">
-        <h2 className="text-3xl font-bold text-yellow-400 drop-shadow-lg tracking-wide">{currentSceneData.title}</h2>
-      </div>
-
-      {/* Character Display */}
-      <div className="flex-1 flex items-center justify-center relative p-4">
-        {speakerImage && currentLineData.speaker !== 'narrator' && (
-          <img src={speakerImage} alt={speakerName} className="max-h-[50vh] max-w-[80%] object-contain rounded-lg shadow-2xl transition-all duration-500" />
-        )}
-      </div>
-
-      {/* Text Box */}
-      <div className="relative z-20 p-6">
-        <div className="bg-gradient-to-r from-black via-gray-900 to-black bg-opacity-95 rounded-xl p-4 border-4 border-blue-500 max-w-4xl mx-auto w-full shadow-2xl">
-          {speakerName && speakerName !== 'Narrator' && (
-            <div className="text-2xl font-bold text-yellow-300 mb-2">{speakerName}</div>
-          )}
-          <div className="text-white text-lg leading-relaxed min-h-[6rem] font-sans">
-            {displayedText}
-            {isTyping && <span className="animate-pulse ml-1">▌</span>}
-          </div>
-
-          {showChoices && currentLineData?.choice && (
-            <div className="mt-4 space-y-2">
-              <div className="text-yellow-300 font-bold mb-3 text-base">{currentLineData.choice.question}</div>
-              {currentLineData.choice.options.map((option, idx) => (
-                <button key={idx} onClick={() => handleChoice(option)} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 p-3 rounded-lg text-left transition-all transform hover:scale-105 font-semibold border-2 border-white border-opacity-20 shadow-lg text-base">
-                  {option.text}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {!showChoices && (
-            <button onClick={handleNext} className="mt-4 flex items-center gap-2 bg-green-600 hover:bg-green-500 px-6 py-2 rounded-full ml-auto transition-all transform hover:scale-105 shadow-lg font-bold border-2 border-white border-opacity-20">
-              {isTyping ? 'Skip' : 'Next'}
-              <ChevronRight size={18} />
-            </button>
-          )}
-        </div>
+      <div style={styles.textBox}>
+        <div style={styles.characterName}>{scenes[currentScene].speaker || 'Narrator'}</div>
+        <div style={styles.dialogue}>{text}</div>
       </div>
     </div>
   );
-}
+};
 
 export default VisualNovel;
