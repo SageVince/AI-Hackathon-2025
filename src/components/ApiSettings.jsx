@@ -13,7 +13,6 @@ const ApiSettings = ({ backToGrid, theme, apiKey, apiProvider, model, onApiSetti
         setFetchingModels(true);
         let endpoint = '';
         let headers = {};
-
         const provider = localApiProvider.toLowerCase();
 
         if (provider === 'google') {
@@ -39,15 +38,16 @@ const ApiSettings = ({ backToGrid, theme, apiKey, apiProvider, model, onApiSetti
         try {
             const response = await fetch(endpoint, { headers });
             if (!response.ok) {
-                throw new Error(`Failed to fetch models: ${response.statusText}`);
+                // Throw the whole response object to be processed in the catch block
+                throw response;
             }
             const data = await response.json();
 
             let models = [];
             if (provider === 'google') {
-                models = data.models.map(m => m.name.replace('models/', '')).filter(m => m.includes('gemini'));
+                models = data.models.map(m => m.name.replace('models/', ''));
             } else if (provider === 'openai') {
-                models = data.data.map(m => m.id).filter(m => m.includes('gpt'));
+                models = data.data.map(m => m.id);
             } else if (provider === 'ollama') {
                 models = data.models.map(m => m.name);
             }
@@ -56,26 +56,41 @@ const ApiSettings = ({ backToGrid, theme, apiKey, apiProvider, model, onApiSetti
                 setLocalModel(models[0]);
             }
         } catch (error) {
-            console.error("Error fetching models:", error);
-            alert(`Failed to fetch models. For Ollama, make sure it's running. For others, check your API key and network connection.`);
             setAvailableModels([]); // Clear models on error
+            console.error("Error fetching models:", error);
+
+            if (error instanceof Response) {
+                // Handle HTTP errors (e.g., 400, 403, 500)
+                const errorData = await error.json().catch(() => ({})); // Gracefully handle non-JSON or empty responses
+                const detail = (errorData.error && errorData.error.message) || error.statusText;
+
+                if (provider === 'google' && detail.includes('API has not been used')) {
+                    alert('ACTION REQUIRED: The "Generative Language API" is not enabled for your Google Cloud project. Please go to the Google Cloud Console, search for this API, and enable it.');
+                } else {
+                    alert(`Failed to fetch models: ${detail}`);
+                }
+            } else {
+                // Handle network errors (fetch itself failed)
+                alert(`Network error: ${error.message}. Please check your connection and the API endpoint for Ollama.`);
+            }
         }
 
         setFetchingModels(false);
     }, [localApiProvider, localApiKey, localModel]);
+
 
     useEffect(() => {
         const currentProvider = localApiProvider.toLowerCase();
         setAvailableModels([]);
 
         if (currentProvider === 'google') {
-            setLocalModel(model.includes('gemini') ? model : 'gemini-1.5-pro');
+            setLocalModel(model.includes('gemini') ? model : 'gemini-1.5-pro-latest');
             if (apiProvider.toLowerCase() !== 'google') setLocalApiKey('');
         } else if (currentProvider === 'openai') {
-            setLocalModel(model.includes('gpt') ? model : 'gpt-3.5-turbo');
+            setLocalModel(model.includes('gpt') ? model : 'gpt-4-turbo');
             if (apiProvider.toLowerCase() !== 'openai') setLocalApiKey('');
         } else if (currentProvider === 'ollama') {
-            setLocalModel(model.includes('llama') ? model : 'llama2');
+            setLocalModel(model.includes('llama') ? model : 'llama3');
             if (apiProvider.toLowerCase() !== 'ollama') setLocalApiKey('http://localhost:11434');
             fetchModels();
         }
