@@ -1,16 +1,19 @@
 // @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, RotateCcw, Volume2, VolumeX, Home } from 'lucide-react';
+import { ChevronRight, RotateCcw, Volume2, VolumeX, Home, Play, FastForward } from 'lucide-react';
 import { characters, scenes } from '../story.js';
 
-function VisualNovel({ backToMenu }) {
-  const [currentScene, setCurrentScene] = useState(0);
+function VisualNovel({ backToMenu, startScene = 0 }) {
+  const [currentScene, setCurrentScene] = useState(startScene);
   const [currentLine, setCurrentLine] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
   const [gameState, setGameState] = useState({ money: 0, knowledge: 0 });
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [autoplay, setAutoplay] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [autoChoice, setAutoChoice] = useState(false);
 
   const currentSceneData = scenes[currentScene];
   const currentLineData = currentSceneData?.lines[currentLine];
@@ -38,19 +41,31 @@ function VisualNovel({ backToMenu }) {
         index++;
       } else {
         setIsTyping(false);
-        if (currentLineData.choice) setShowChoices(true);
+        if (currentLineData.choice) {
+          setShowChoices(true);
+          if (autoChoice) {
+            handleChoice(currentLineData.choice.options[0]);
+          }
+        } else if (autoplay) {
+          handleNext();
+        }
         clearInterval(interval);
       }
-    }, 30);
+    }, 30 / speed);
     return () => clearInterval(interval);
-  }, [currentLine, currentScene, backToMenu, currentLineData, scenes.length]);
+  }, [currentLine, currentScene, backToMenu, currentLineData, scenes.length, speed, autoplay, autoChoice]);
 
   const handleNext = () => {
     if (!currentLineData) return;
     if (isTyping) {
       setDisplayedText(currentLineData.text);
       setIsTyping(false);
-      if (currentLineData.choice) setShowChoices(true);
+      if (currentLineData.choice) {
+        setShowChoices(true);
+        if (autoChoice) {
+          handleChoice(currentLineData.choice.options[0]);
+        }
+      }
       return;
     }
     if (showChoices) return;
@@ -78,7 +93,7 @@ function VisualNovel({ backToMenu }) {
   };
 
   const handleRestart = () => {
-    setCurrentScene(0);
+    setCurrentScene(startScene);
     setCurrentLine(0);
     setGameState({ money: 0, knowledge: 0 });
     setShowChoices(false);
@@ -100,6 +115,15 @@ function VisualNovel({ backToMenu }) {
           <span className="text-blue-400">📚 Knowledge: {gameState.knowledge}</span>
         </div>
         <div className="flex gap-4">
+            <button onClick={() => setAutoplay(!autoplay)} className={`p-2 hover:bg-white/10 rounded ${autoplay ? 'text-green-400' : ''}`}>
+                <Play size={20} />
+            </button>
+            <button onClick={() => setSpeed(speed === 1 ? 2 : 1)} className={`p-2 hover:bg-white/10 rounded ${speed === 2 ? 'text-green-400' : ''}`}>
+                <FastForward size={20} />
+            </button>
+            <button onClick={() => setAutoChoice(!autoChoice)} className={`p-2 hover:bg-white/10 rounded ${autoChoice ? 'text-green-400' : ''}`}>
+                Auto-Choice
+            </button>
           <button onClick={backToMenu} className="hover:text-green-400 p-2 hover:bg-white/10 rounded">
               <Home size={20} />
           </button>
